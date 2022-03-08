@@ -200,6 +200,47 @@ describe('Subscriptions', () => {
       expect(spy2).toHaveBeenCalledTimes(1)
     })
 
+    it('triggers subscribe only once on $patch', async () => {
+      const s1 = useStore()
+      const spy1 = jest.fn()
+
+      s1.$subscribe(spy1)
+
+      // First mutation: works as expected
+      s1.$patch({ user: 'Edu' })
+      await Promise.resolve()
+      expect(spy1).toHaveBeenCalledTimes(1)
+      expect(spy1).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          storeId: 'main',
+          type: MutationType.direct,
+        }),
+        s1.$state
+      )
+
+      //
+      // Second mutation: for some reason we get two $subscribe notifications:
+      // one with MutationType.patch, and one with MutationType.direct
+      //
+      // If we replace both instances of `await Promise.resolve()` (the one above
+      // and the one that follows) with `await nextTick()`, it works as expected???
+      //
+      s1.$patch({ user: 'Myk' })
+      await Promise.resolve()
+
+      // fails
+      expect(spy1).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          storeId: 'main',
+          type: MutationType.direct,
+        }),
+        s1.$state
+      )
+
+      // fails
+      expect(spy1).toHaveBeenCalledTimes(2)
+    })
+
     it('removes on unmount', async () => {
       const pinia = createPinia()
       setActivePinia(pinia)
